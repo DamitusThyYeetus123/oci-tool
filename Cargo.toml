@@ -1,0 +1,12 @@
+[package]
+name = "oci-tool"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.6.0", features = ["derive"] }
+flate2 = "1.1.9"
+serde = { version = "1.0.228", features = ["serde_derive"] }
+serde_json = "1.0.149"
+sha2 = "0.10.9"
+tar = "0.4.45"
