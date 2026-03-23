@@ -37,6 +37,9 @@ struct Cli {
     /// Working Directory to run the container's commands in
     #[arg(short, long)]
     workingdir: Option<String>,
+    /// Environment variables to pass to the container, e.g. var=content
+    #[arg(short, long)]
+    env: Option<Vec<String>>,
 }
 
 fn create_layer(read_path: &str, image_path: &str, outpath: &str) -> Result<Layer, std::io::Error> {
@@ -171,7 +174,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &layers,
         ContainerConfig {
             User: None,
-            Env: None,
+            Env: cli.env,
             Entrypoint: None,
             Cmd: cli.command,
             WorkingDir: cli.workingdir,
