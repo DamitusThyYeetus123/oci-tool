@@ -54,7 +54,7 @@ fn create_layer(read_path: &str, image_path: &str, outpath: &str) -> Result<Laye
         write!(&mut hash_str, "{:02x}", byte).expect("Unable to write");
     }
     fs::create_dir_all(format!("{outpath}/blobs/sha256")).expect("failed to create dir");
-    fs::rename(
+    fs::copy(
         "tmp/layer.tar.gz",
         format!("{outpath}/blobs/sha256/{hash_str}"),
     )
@@ -168,7 +168,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         write!(&mut config_hash, "{:02x}", byte).expect("Unable to write");
     }
 
-    fs::rename(
+    fs::copy(
         "tmp/config.json",
         format!("{0}/blobs/sha256/{1}", cli.output, config_hash),
     )?;
@@ -195,7 +195,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         write!(&mut manifest_hash, "{:02x}", byte).expect("Unable to write");
     }
 
-    fs::rename(
+    fs::copy(
         "tmp/manifest.json",
         format!("{0}/blobs/sha256/{1}", cli.output, manifest_hash),
     )?;
@@ -215,6 +215,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         format!("{0}/index.json", cli.output),
         serde_json::to_string_pretty(&index)?,
     )?;
-    fs::remove_dir("tmp")?;
+    fs::remove_dir_all("tmp")?;
     Ok(())
 }
