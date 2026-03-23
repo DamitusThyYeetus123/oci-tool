@@ -34,9 +34,9 @@ struct Cli {
 fn create_layer(read_path: &str, image_path: &str, outpath: &str) -> Result<Layer, std::io::Error> {
     // Read path and create compressed tarball
     fs::create_dir_all("tmp")?;
-    let tarball = File::create("tmp/layer.tar.gz")?;
-    let encoder = GzEncoder::new(tarball, Compression::default());
-    let mut tar = tar::Builder::new(encoder);
+    let tarball = File::create("tmp/layer.tar")?;
+    // let encoder = GzEncoder::new(tarball, Compression::default());
+    let mut tar = tar::Builder::new(tarball);
     tar.follow_symlinks(false);
     tar.sparse(false);
     if (fs::metadata(read_path)?.is_dir()) {
@@ -44,11 +44,11 @@ fn create_layer(read_path: &str, image_path: &str, outpath: &str) -> Result<Laye
     } else {
         tar.append_path_with_name(read_path, format!("./{image_path}"))?;
     }
-    let layer_size = tar.into_inner()?.finish()?.metadata()?.len();
+    let layer_size = tar.into_inner()?.metadata()?.len();
 
     // Hash tarball and move to correct directory
     let mut hasher = Sha256::new();
-    let mut file = fs::File::open("tmp/layer.tar.gz")?;
+    let mut file = fs::File::open("tmp/layer.tar")?;
 
     let hash_contents = io::copy(&mut file, &mut hasher)?;
     let hash_bytes = hasher.finalize();
@@ -59,7 +59,7 @@ fn create_layer(read_path: &str, image_path: &str, outpath: &str) -> Result<Laye
     }
     fs::create_dir_all(format!("{outpath}/blobs/sha256")).expect("failed to create dir");
     fs::copy(
-        "tmp/layer.tar.gz",
+        "tmp/layer.tar",
         format!("{outpath}/blobs/sha256/{hash_str}"),
     )
     .expect("failed to move layer");
