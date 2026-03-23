@@ -18,6 +18,14 @@
       pkg-config
     ];
   in {
+    legacyPackages."x86_64-linux".default = pkgs.rustPlatform.buildRustPackage {
+      pname = "oci-tool";
+      version = "0.1.0";
+      src = ./.;
+      cargoLock = {
+        lockFile = ./Cargo.lock;
+      };
+    };
     devShells."x86_64-linux".default = pkgs.mkShell {
       buildInputs = inputs;
       nativeBuildInputs = [pkgs.pkg-config];
