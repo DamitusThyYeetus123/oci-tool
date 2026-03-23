@@ -99,7 +99,7 @@ fn make_manifest(
 ) -> Manifest {
     let mut layerDescriptors: Vec<Descriptor> = Vec::new();
     layerDescriptors.push(Descriptor {
-        mediaType: "application/vnd.oci.image.layer.v1.tar+gzip".to_string(),
+        mediaType: "application/vnd.oci.image.layer.v1.tar".to_string(),
         digest: format!("sha256:{0}", rootfs.hash),
         size: rootfs.size,
         urls: None,
@@ -108,7 +108,7 @@ fn make_manifest(
     });
     for layer in layers {
         layerDescriptors.push(Descriptor {
-            mediaType: "application/vnd.oci.image.layer.v1.tar+gzip".to_string(),
+            mediaType: "application/vnd.oci.image.layer.v1.tar".to_string(),
             digest: format!("sha256:{0}", layer.hash),
             size: layer.size,
             urls: None,
