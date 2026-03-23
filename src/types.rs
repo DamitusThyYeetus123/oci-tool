@@ -32,7 +32,22 @@ pub struct Config {
     pub created: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub author: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub config: Option<ContainerConfig>,
     pub rootfs: Rootfs,
+}
+#[derive(Serialize, Deserialize)]
+pub struct ContainerConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub User: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub Env: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub Entrypoint: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub Cmd: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub WorkingDir: Option<String>,
 }
 #[derive(Serialize, Deserialize)]
 pub struct Rootfs {

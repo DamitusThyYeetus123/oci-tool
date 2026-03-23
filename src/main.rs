@@ -1,5 +1,7 @@
 mod types;
-use crate::types::{Config, Descriptor, Index, Manifest, ManifestDescriptor, Rootfs};
+use crate::types::{
+    Config, ContainerConfig, Descriptor, Index, Manifest, ManifestDescriptor, Rootfs,
+};
 use clap::Parser;
 use flate2::Compression;
 use flate2::write::GzEncoder;
@@ -29,6 +31,12 @@ struct Cli {
     /// Output directory to create image
     #[arg(short, long, default_value = "result")]
     output: String,
+    /// Command to use on container startup
+    #[arg(short, long)]
+    command: Option<Vec<String>>,
+    /// Working Directory to run the container's commands in
+    #[arg(short, long)]
+    workingdir: Option<String>,
 }
 
 fn create_layer(read_path: &str, image_path: &str, outpath: &str) -> Result<Layer, std::io::Error> {
@@ -73,7 +81,7 @@ fn create_layer(read_path: &str, image_path: &str, outpath: &str) -> Result<Laye
     })
 }
 
-fn make_config(rootfs: &Layer, layers: &Vec<Layer>) -> Config {
+fn make_config(rootfs: &Layer, layers: &Vec<Layer>, containerconf: ContainerConfig) -> Config {
     let mut layer_digests: Vec<String> = Vec::new();
     layer_digests.push(format!("sha256:{0}", rootfs.hash));
     for layer in layers {
@@ -84,6 +92,7 @@ fn make_config(rootfs: &Layer, layers: &Vec<Layer>) -> Config {
         arch: "amd64".to_string(),
         created: None,
         author: None,
+        config: Some(containerconf),
         rootfs: Rootfs {
             diff_ids: layer_digests,
             r#type: "layers".to_string(),
@@ -157,7 +166,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         layers.push(layer);
     }
     println!("Finished creating layers, generating config..");
-    let config = make_config(&root, &layers);
+    let config = make_config(
+        &root,
+        &layers,
+        ContainerConfig {
+            User: None,
+            Env: None,
+            Entrypoint: None,
+            Cmd: cli.command,
+            WorkingDir: cli.workingdir,
+        },
+    );
     println!("Config generated");
     fs::write("tmp/config.json", serde_json::to_string_pretty(&config)?)?;
     println!("Config written successfully");
