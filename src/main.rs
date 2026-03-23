@@ -39,7 +39,11 @@ fn create_layer(read_path: &str, image_path: &str, outpath: &str) -> Result<Laye
     let mut tar = tar::Builder::new(encoder);
     tar.follow_symlinks(false);
     tar.sparse(false);
-    tar.append_dir_all(format!("./{image_path}"), read_path)?;
+    if (fs::metadata(read_path)?.is_dir()) {
+        tar.append_dir_all(format!("./{image_path}"), read_path)?;
+    } else {
+        tar.append_path_with_name(read_path, format!("./{image_path}"))?;
+    }
     let layer_size = tar.into_inner()?.finish()?.metadata()?.len();
 
     // Hash tarball and move to correct directory
