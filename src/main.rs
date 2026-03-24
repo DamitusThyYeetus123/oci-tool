@@ -46,7 +46,6 @@ fn create_layer(read_path: &str, image_path: &str, outpath: &str) -> Result<Laye
     // Read path and create compressed tarball
     fs::create_dir_all("tmp")?;
     let tarball = File::create("tmp/layer.tar")?;
-    // let encoder = GzEncoder::new(tarball, Compression::default());
     let mut tar = tar::Builder::new(tarball);
     tar.follow_symlinks(false);
     tar.sparse(false);
@@ -55,7 +54,6 @@ fn create_layer(read_path: &str, image_path: &str, outpath: &str) -> Result<Laye
     } else {
         tar.append_path_with_name(read_path, format!("./{image_path}"))?;
     }
-    let layer_size = tar.into_inner()?.metadata()?.len();
 
     // Hash tarball and move to correct directory
     let mut hasher = Sha256::new();
@@ -69,11 +67,12 @@ fn create_layer(read_path: &str, image_path: &str, outpath: &str) -> Result<Laye
         write!(&mut hash_str, "{:02x}", byte).expect("Unable to write");
     }
     fs::create_dir_all(format!("{outpath}/blobs/sha256")).expect("failed to create dir");
-    fs::copy(
-        "tmp/layer.tar",
-        format!("{outpath}/blobs/sha256/{hash_str}"),
-    )
-    .expect("failed to move layer");
+    let compressed = File::create(format!("{outpath}/blobs/sha256/{hash_str}"))?;
+    let mut encoder = GzEncoder::new(compressed, Compression::default());
+    let mut file = fs::File::open("tmp/layer.tar")?;
+    io::copy(&mut file, &mut encoder).expect("failed to move layer");
+
+    let layer_size = encoder.finish()?.metadata()?.len();
 
     // Return Layer
     Ok(Layer {
@@ -111,7 +110,7 @@ fn make_manifest(
 ) -> Manifest {
     let mut layerDescriptors: Vec<Descriptor> = Vec::new();
     layerDescriptors.push(Descriptor {
-        mediaType: "application/vnd.oci.image.layer.v1.tar".to_string(),
+        mediaType: "application/vnd.oci.image.layer.v1.tar+gzip".to_string(),
         digest: format!("sha256:{0}", rootfs.hash),
         size: rootfs.size,
         urls: None,
@@ -120,7 +119,7 @@ fn make_manifest(
     });
     for layer in layers {
         layerDescriptors.push(Descriptor {
-            mediaType: "application/vnd.oci.image.layer.v1.tar".to_string(),
+            mediaType: "application/vnd.oci.image.layer.v1.tar+gzip".to_string(),
             digest: format!("sha256:{0}", layer.hash),
             size: layer.size,
             urls: None,
