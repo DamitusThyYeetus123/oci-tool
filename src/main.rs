@@ -41,7 +41,7 @@ struct Cli {
     #[arg(short, long)]
     env: Option<Vec<String>>,
     /// Compress layers
-    #[arg(long, default_value_t = true)]
+    #[arg(long)]
     compress: bool,
 }
 
