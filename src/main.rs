@@ -83,6 +83,10 @@ fn create_layer(
         io::copy(&mut file, &mut encoder).expect("failed to move layer");
 
         layer_size = encoder.finish()?.metadata()?.len();
+    } else {
+        let mut res = File::create(format!("{outpath}/blobs/sha256/{hash_str}"))?;
+        let mut file = fs::File::open("tmp/layer.tar")?;
+        io::copy(&mut file, &mut res).expect("failed to move layer");
     }
 
     // Return Layer
