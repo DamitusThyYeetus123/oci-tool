@@ -40,9 +40,17 @@ struct Cli {
     /// Environment variables to pass to the container, e.g. var=content
     #[arg(short, long)]
     env: Option<Vec<String>>,
+    /// Compress layers
+    #[arg(long, default_value_t = true)]
+    compress: bool,
 }
 
-fn create_layer(read_path: &str, image_path: &str, outpath: &str) -> Result<Layer, std::io::Error> {
+fn create_layer(
+    read_path: &str,
+    image_path: &str,
+    outpath: &str,
+    compress: bool,
+) -> Result<Layer, std::io::Error> {
     // Read path and create compressed tarball
     fs::create_dir_all("tmp")?;
     let tarball = File::create("tmp/layer.tar")?;
@@ -54,6 +62,7 @@ fn create_layer(read_path: &str, image_path: &str, outpath: &str) -> Result<Laye
     } else {
         tar.append_path_with_name(read_path, format!("./{image_path}"))?;
     }
+    let mut layer_size = tar.into_inner()?.metadata()?.len()
 
     // Hash tarball and move to correct directory
     let mut hasher = Sha256::new();
@@ -67,12 +76,14 @@ fn create_layer(read_path: &str, image_path: &str, outpath: &str) -> Result<Laye
         write!(&mut hash_str, "{:02x}", byte).expect("Unable to write");
     }
     fs::create_dir_all(format!("{outpath}/blobs/sha256")).expect("failed to create dir");
-    let compressed = File::create(format!("{outpath}/blobs/sha256/{hash_str}"))?;
-    let mut encoder = GzEncoder::new(compressed, Compression::default());
-    let mut file = fs::File::open("tmp/layer.tar")?;
-    io::copy(&mut file, &mut encoder).expect("failed to move layer");
+    if (compress == true) {
+        let compressed = File::create(format!("{outpath}/blobs/sha256/{hash_str}"))?;
+        let mut encoder = GzEncoder::new(compressed, Compression::default());
+        let mut file = fs::File::open("tmp/layer.tar")?;
+        io::copy(&mut file, &mut encoder).expect("failed to move layer");
 
-    let layer_size = encoder.finish()?.metadata()?.len();
+        layer_size = encoder.finish()?.metadata()?.len();
+    }
 
     // Return Layer
     Ok(Layer {
@@ -157,13 +168,14 @@ fn make_index(manifests: Vec<ManifestDescriptor>) -> Index {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
-    let root = create_layer(cli.rootfs.as_str(), "/", cli.output.as_str())?;
+    let root = create_layer(cli.rootfs.as_str(), "/", cli.output.as_str(),cli.compress)?;
     let mut layers: Vec<Layer> = Vec::new();
     for path in cli.layer {
         let layer = create_layer(
             path.split_once(":").unwrap().0,
             path.split_once(":").unwrap().1,
             cli.output.as_str(),
+            cli.compress,
         )?;
         layers.push(layer);
     }
