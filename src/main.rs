@@ -14,7 +14,8 @@ use std::{fs, io};
 struct Layer {
     layer_path: PathBuf,
     image_path: String,
-    hash: String,
+    layer_hash: String,
+    digest_hash: String,
     size: u64,
 }
 
@@ -75,34 +76,50 @@ fn create_layer(
     for &byte in hash_bytes.as_slice() {
         write!(&mut hash_str, "{:02x}", byte).expect("Unable to write");
     }
+
+    let mut digest_str = String::new();
     fs::create_dir_all(format!("{outpath}/blobs/sha256")).expect("failed to create dir");
     if (compress == true) {
-        let compressed = File::create(format!("{outpath}/blobs/sha256/{hash_str}"))?;
+        let compressed = File::create("tmp/layer.tar.gz")?;
         let mut encoder = GzEncoder::new(compressed, Compression::default());
         let mut file = fs::File::open("tmp/layer.tar")?;
         io::copy(&mut file, &mut encoder).expect("failed to move layer");
 
         layer_size = encoder.finish()?.metadata()?.len();
+        let mut hasher = Sha256::new();
+        let mut file = fs::File::open("tmp/layer.tar.gz")?;
+
+        let hash_contents = io::copy(&mut file, &mut hasher)?;
+        let hash_bytes = hasher.finalize();
+
+        for &byte in hash_bytes.as_slice() {
+            write!(&mut digest_str, "{:02x}", byte).expect("Unable to write");
+        }
+        let mut res = File::create(format!("{outpath}/blobs/sha256/{digest_str}"))?;
+        let mut file = fs::File::open("tmp/layer.tar.gz")?;
+        io::copy(&mut file, &mut res).expect("failed to move layer");
     } else {
-        let mut res = File::create(format!("{outpath}/blobs/sha256/{hash_str}"))?;
+        digest_str = hash_str.clone();
+        let mut res = File::create(format!("{outpath}/blobs/sha256/{digest_str}"))?;
         let mut file = fs::File::open("tmp/layer.tar")?;
         io::copy(&mut file, &mut res).expect("failed to move layer");
     }
 
     // Return Layer
     Ok(Layer {
-        layer_path: PathBuf::from(format!("{outpath}/blobs/sha256/{hash_str}")),
+        layer_path: PathBuf::from(format!("{outpath}/blobs/sha256/{digest_str}")),
         image_path: image_path.to_string(),
-        hash: hash_str.clone(),
+        layer_hash: hash_str.clone(),
+        digest_hash: digest_str.clone(),
         size: layer_size,
     })
 }
 
 fn make_config(rootfs: &Layer, layers: &Vec<Layer>, containerconf: ContainerConfig) -> Config {
     let mut layer_digests: Vec<String> = Vec::new();
-    layer_digests.push(format!("sha256:{0}", rootfs.hash));
+    layer_digests.push(format!("sha256:{0}", rootfs.layer_hash));
     for layer in layers {
-        layer_digests.push(format!("sha256:{0}", layer.hash));
+        layer_digests.push(format!("sha256:{0}", layer.layer_hash));
     }
     Config {
         os: "linux".to_string(),
@@ -126,7 +143,7 @@ fn make_manifest(
     let mut layerDescriptors: Vec<Descriptor> = Vec::new();
     layerDescriptors.push(Descriptor {
         mediaType: "application/vnd.oci.image.layer.v1.tar+gzip".to_string(),
-        digest: format!("sha256:{0}", rootfs.hash),
+        digest: format!("sha256:{0}", rootfs.digest_hash),
         size: rootfs.size,
         urls: None,
         data: None,
@@ -135,7 +152,7 @@ fn make_manifest(
     for layer in layers {
         layerDescriptors.push(Descriptor {
             mediaType: "application/vnd.oci.image.layer.v1.tar+gzip".to_string(),
-            digest: format!("sha256:{0}", layer.hash),
+            digest: format!("sha256:{0}", layer.digest_hash),
             size: layer.size,
             urls: None,
             data: None,
