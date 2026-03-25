@@ -62,7 +62,7 @@ fn create_layer(
     } else {
         tar.append_path_with_name(read_path, format!("./{image_path}"))?;
     }
-    let mut layer_size = tar.into_inner()?.metadata()?.len()
+    let mut layer_size = tar.into_inner()?.metadata()?.len();
 
     // Hash tarball and move to correct directory
     let mut hasher = Sha256::new();
@@ -168,7 +168,7 @@ fn make_index(manifests: Vec<ManifestDescriptor>) -> Index {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
-    let root = create_layer(cli.rootfs.as_str(), "/", cli.output.as_str(),cli.compress)?;
+    let root = create_layer(cli.rootfs.as_str(), "/", cli.output.as_str(), cli.compress)?;
     let mut layers: Vec<Layer> = Vec::new();
     for path in cli.layer {
         let layer = create_layer(
